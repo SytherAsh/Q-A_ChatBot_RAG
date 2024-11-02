@@ -10,3 +10,4 @@ python-dotenv
 pypdf 
 tiktoken
 bs4
+pymongo
