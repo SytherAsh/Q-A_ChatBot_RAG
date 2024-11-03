@@ -1,8 +1,6 @@
 import streamlit as st
 import time
-import numpy as np
-import pandas as pd
-from Groq import get_response, display_message, format_response 
+from Groq import get_response,format_response 
 #! Page configuration
 st.set_page_config(page_title="GroqBot", layout="wide", page_icon="🤖")
 
@@ -60,26 +58,24 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 #! Sidebar for additional options
 with st.sidebar:
     model_choice = st.selectbox("Model", ["Gemma-7b-it","mixtral-8x7b-32768"])
     prompt_choice = st.selectbox("Prompt", ["Chatgpt","Google","OpenAI"])
-    
-    # st.button("+ New chat", key="new_chat")
-    # st.button("+ New prompt", key="new_prompt")
-    st.markdown("---")
-    # st.text("No data.")
-    # if st.button("Import data", key="import_data"):
-    #     st.write("Data imported")
+    prompt_new=st.sidebar.toggle("CustomPrompt", key="prompt")
 
-    #     uploaded_files = st.file_uploader(
-    #         "Choose a Document", accept_multiple_files=True
-    #     )
-    #     for uploaded_file in uploaded_files:
-    #         bytes_data = uploaded_file.read()
-    #         st.write("filename:", uploaded_file.name)
-    #         st.write(bytes_data)
+    st.markdown("---")
+    temperature = st.slider(
+        label="Temperature",
+        min_value=0.1,
+        max_value=1.0,
+        value=0.5,
+        step=0.1,
+        help="""Higher values like 0.8 will make the output more random, 
+        while lower values like 0.2 will make it more focused and deterministic."""
+    )
+
+   
     import_button = st.sidebar.button("Import", key="Import")
  
     if st.sidebar.button("Export", key="Export"):
@@ -93,67 +89,63 @@ with st.sidebar:
         st.download_button("Download", conversation_text, "conversation.txt", "text/plain",use_container_width=True)
 
 
-    st.button("Settings", key="settings")
-
 #! Header
 st.markdown("<h1 style='text-align: center;'>GroqBot 🤖</h1>", unsafe_allow_html=True)
-
 
     
 #! Chat area
 with st.chat_message(avatar="🤖", name="Chatbot Ollama"):
     user_input = st.chat_input("Type a message or type ")
-
+#!Custom Prompt
+custom_prompt=""
+if prompt_new:
+    st.write("### System Prompt")
+    custom_prompt = st.text_area(
+        label="",
+        value="You are Chatbot Groq, a chatbot baked by a large language model. "
+            "Follow the user's instructions carefully. Respond using markdown.",
+        height=100
+    )
 #! Input and output display
 def stream_data(Groq_formatted_response):
     for word in Groq_formatted_response.split(" "):
         yield word + " "
         time.sleep(0.02)
-        
-if user_input:
-    Groq_response = get_response(user_input, model_choice,prompt_choice)
-    Groq_formatted_response = format_response(Groq_response)
-    st.write_stream(stream_data(Groq_formatted_response))    
 
+if user_input and not prompt_new:
+    Groq_response = get_response(user_input, model_choice,prompt_choice,temperature)
+    Groq_formatted_response = format_response(Groq_response)
+    # st.write(prompt_choice)
+    st.write_stream(stream_data(Groq_formatted_response))    
+    st.session_state.conversation.append({"role": "user", "content": user_input})
+    model_response = Groq_response.content
+    st.session_state.conversation.append({"role": "bot", "content": model_response})
+elif user_input and  prompt_new:
+    Groq_response = get_response(user_input, model_choice,custom_prompt,temperature)
+    Groq_formatted_response = format_response(Groq_response)
+    # st.write(custom_prompt)
+    st.write_stream(stream_data(Groq_formatted_response))    
     st.session_state.conversation.append({"role": "user", "content": user_input})
     model_response = Groq_response.content
     st.session_state.conversation.append({"role": "bot", "content": model_response})
     
+   
 
 st.markdown("---")
 
-       
+
 col2, col3,col4 = st.columns([1,1,1])
 with col2:
    if st.button("Clear Chat",use_container_width=True):
          st.session_state.conversation = []
          st.session_state.conversation.clear()
          st.write("Chat cleared")
-
-    
-    
 with col4:
     show_botton = st.button("Show Chat",use_container_width=True)
    
-# with st.container():
-#     st.write("### System Prompt")
-#     system_prompt = st.text_area(
-#         label="",
-#         value="You are Chatbot Ollama, a chatbot baked by a large language model. "
-#               "Follow the user's instructions carefully. Respond using markdown.",
-#         height=100
-#     )
-#  if st.button("Prompt",use_container_width=True):
-#         st.write("### System Prompt")
-#         system_prompt = st.text_area(
-#             label="",
-#             value="You are Chatbot Ollama, a chatbot baked by a large language model. "
-#                 "Follow the user's instructions carefully. Respond using markdown.",
-#             height=100
-#         )
+
 
 #! Upload Document
-
 if import_button:
     uploaded_files = st.file_uploader(
             "Choose a Document", accept_multiple_files=True
@@ -183,13 +175,3 @@ st.markdown("<p style='text-align: center;'>GroqBot is an advanced chatbot kit f
 
 # Main container for chat settings and responses
   
-    # st.write("### Temperature")
-    # temperature = st.slider(
-    #     label="",
-    #     min_value=0.2,
-    #     max_value=1.0,
-    #     value=1.0,
-    #     step=0.1,
-    #     help="Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic."
-    # )
-    
